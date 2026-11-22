@@ -11,6 +11,7 @@ import android.net.Uri
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.view.DragEvent
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
@@ -71,6 +72,10 @@ class MainActivity : FlutterActivity() {
         // A new activity has a new Flutter engine, which knows no copy from
         // before: they all go, before any new one is written.
         copier.clearAll()
+        // Accept files and text dragged from another window in foldable/tablet
+        // split-screen or desktop windowing, using the same ShareCopier
+        // security checks as ACTION_SEND.
+        window?.decorView?.setOnDragListener { _, event -> handleDrag(event) }
         // A share or a shortcut that started the app. Not when the activity
         // comes back after the system ended it: that intent was handled.
         if (savedInstanceState == null) take(intent)
@@ -80,6 +85,35 @@ class MainActivity : FlutterActivity() {
         super.onNewIntent(intent)
         setIntent(intent)
         take(intent)
+    }
+
+    /** Multi-window Drag & Drop on foldables, tablets, and Android Desktop:
+     * dropped `content://` URIs are copied via [ShareCopier] with temporary
+     * `DragAndDropPermissions` released immediately on completion, and plain
+     * text opens Send for review before creating a code. */
+    private fun handleDrag(event: DragEvent): Boolean = when (event.action) {
+        DragEvent.ACTION_DRAG_STARTED -> event.clipDescription != null
+        DragEvent.ACTION_DRAG_ENTERED,
+        DragEvent.ACTION_DRAG_LOCATION,
+        DragEvent.ACTION_DRAG_EXITED,
+        DragEvent.ACTION_DRAG_ENDED -> true
+        DragEvent.ACTION_DROP -> {
+            val uris = SharedFiles.urisOfClipData(event.clipData)
+            if (uris.isNotEmpty()) {
+                val permissions = requestDragAndDropPermissions(event)
+                startShareCopy(uris) { permissions?.release() }
+                true
+            } else {
+                val text = SharedFiles.textOfClipData(event.clipData)
+                if (text != null) {
+                    launches.send(mapOf("screen" to "send", "text" to text))
+                    true
+                } else {
+                    false
+                }
+            }
+        }
+        else -> false
     }
 
     /** What the person asked for by sharing to TotalDrop, with a launcher
@@ -133,11 +167,15 @@ class MainActivity : FlutterActivity() {
             forgetText(intent)
             return
         }
+        startShareCopy(uris)
+    }
+
+    private fun startShareCopy(uris: List<Uri>, onFinished: () -> Unit = {}) {
         val id = nextShare.incrementAndGet()
         launches.send(mapOf("id" to id, "screen" to "send", "copying" to true))
-        // The read grant lasts while this activity does, so the copy starts
-        // at once, off the main thread.
-        copier.copy(id, uris) { copied ->
+        // The read grant lasts while this activity (or drag permission) does,
+        // so the copy starts at once, off the main thread.
+        copier.copy(id, uris, onFinished = onFinished) { copied ->
             val event: Map<String, Any> = if (copied == null) {
                 mapOf("id" to id, "failed" to true)
             } else {

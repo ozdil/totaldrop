@@ -3,6 +3,7 @@
 
 package app.totaldrop.totaldrop
 
+import android.content.ClipData
 import android.content.ContentResolver
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -17,19 +18,20 @@ import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.Executors
 
 /**
- * Files shared to TotalDrop from another app (#53, #308): Gallery, Files,
- * any app with a Share button.
+ * Files shared to TotalDrop from another app (#53, #308) or dropped onto the
+ * window in foldable/tablet multi-window mode: Gallery, Files, any app with
+ * Share or Drag & Drop.
  *
  * Another app hands over `content://` URIs with a read grant that lasts as
- * long as this activity. The core reads files by path, so each one is copied
- * first, as the system picker's plugin does for picked files (#269). The
- * grant is never made persistent.
+ * long as this activity (or the drop's `DragAndDropPermissions`). The core
+ * reads files by path, so each one is copied first, as the system picker's
+ * plugin does for picked files (#269). The grant is never made persistent.
  *
  * Only `content://` URIs served by another app are read. Any app can put any
- * URI into a share intent; a `file://` URI, or a content URI of a provider in
- * TotalDrop's own process (share_plus has one), could name TotalDrop's
- * private files, its device key among them, and sending them would leak
- * them. The provider is looked up the way the system resolves it, so a
+ * URI into a share or drop payload; a `file://` URI, or a content URI of a
+ * provider in TotalDrop's own process (share_plus has one), could name
+ * TotalDrop's private files, its device key among them, and sending them would
+ * leak them. The provider is looked up the way the system resolves it, so a
  * `user@` prefix in the authority does not hide it.
  */
 object SharedFiles {
@@ -62,10 +64,43 @@ object SharedFiles {
             else -> return emptyList()
         }
         // Some apps put the files only in ClipData, which carries the grant.
-        intent.clipData?.let { clip ->
-            for (i in 0 until clip.itemCount) clip.getItemAt(i).uri?.let(out::add)
+        out.addAll(urisOfClipData(intent.clipData))
+        return out.toList()
+    }
+
+    /** Unique non-null items in encounter order (shared by intents and multi-window drops). */
+    fun <T : Any> deduplicateOrdered(items: Iterable<T?>): List<T> {
+        val out = LinkedHashSet<T>()
+        for (item in items) {
+            if (item != null) out.add(item)
         }
         return out.toList()
+    }
+
+    /** The URIs carried by a multi-window drag-and-drop [ClipData], in order, each once. */
+    fun urisOfClipData(clipData: ClipData?): List<Uri> {
+        if (clipData == null) return emptyList()
+        val raw = ArrayList<Uri?>(clipData.itemCount)
+        for (i in 0 until clipData.itemCount) raw.add(clipData.getItemAt(i).uri)
+        return deduplicateOrdered(raw)
+    }
+
+    /** Chooses plain text from a multi-window drop when no files were attached. */
+    fun selectDropText(hasUris: Boolean, texts: Iterable<CharSequence?>): String? {
+        if (hasUris) return null
+        val joined = texts
+            .mapNotNull { it?.toString()?.takeIf(String::isNotEmpty) }
+            .joinToString("\n")
+        return joined.takeIf(String::isNotEmpty)
+    }
+
+    /** Plain text from a multi-window drop [ClipData] when no URIs are present. */
+    fun textOfClipData(clipData: ClipData?): String? {
+        if (clipData == null) return null
+        val uris = urisOfClipData(clipData)
+        val texts = ArrayList<CharSequence?>(clipData.itemCount)
+        for (i in 0 until clipData.itemCount) texts.add(clipData.getItemAt(i).text)
+        return selectDropText(uris.isNotEmpty(), texts)
     }
 
     /** The text of a PROCESS_TEXT intent (#326), or null when it has none. */
@@ -205,9 +240,15 @@ class ShareCopier(
     private val reading = ConcurrentHashMap<Long, InputStream>()
 
     /** Copies [uris] as share [id]; [done] gets the result, or null when
-     * nothing could be copied, on the worker. A dropped share gets no
-     * result: no one waits for it. */
-    fun copy(id: Long, uris: List<Uri>, done: (SharedFiles.Copied?) -> Unit) {
+     * nothing could be copied, on the worker. [onFinished] always runs after
+     * the copy completes or fails (used to release temporary drag-and-drop
+     * permissions). A dropped share gets no result: no one waits for it. */
+    fun copy(
+        id: Long,
+        uris: List<Uri>,
+        onFinished: () -> Unit = {},
+        done: (SharedFiles.Copied?) -> Unit,
+    ) {
         worker.execute {
             val dir = File(root, id.toString())
             val result = try {
@@ -216,6 +257,8 @@ class ShareCopier(
                 android.util.Log.w("TotalDrop", "shared files could not be copied: ${e.javaClass.simpleName}")
                 dir.deleteRecursively()
                 null
+            } finally {
+                onFinished()
             }
             if (id in dropped) {
                 dir.deleteRecursively()

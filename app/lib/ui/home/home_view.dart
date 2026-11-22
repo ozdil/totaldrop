@@ -4,6 +4,8 @@
 import 'package:material_ui/material_ui.dart';
 
 import '../../l10n/app_localizations.dart';
+import '../core/adaptive.dart';
+import '../core/common.dart';
 import '../core/mark.dart';
 import '../core/theme.dart';
 
@@ -23,6 +25,56 @@ class HomeView extends StatelessWidget {
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context);
     final theme = Theme.of(context);
+    final metrics = AdaptiveMetrics.of(context);
+    final pad = metrics.horizontalPadding;
+
+    Widget brandHeader({bool includeFooter = false}) => Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Align(
+          alignment: AlignmentDirectional.centerStart,
+          child: TotalDropMark(size: adaptiveMarkSize(context, 88)),
+        ),
+        Gap.m,
+        Text('TotalDrop', style: theme.textTheme.displaySmall),
+        Text(
+          l.appTagline,
+          style: theme.textTheme.bodyLarge?.copyWith(
+            color: theme.colorScheme.onSurfaceVariant,
+          ),
+        ),
+        if (includeFooter) ...[Gap.xl, _PrivacyFooter(text: l.homeFooter)],
+      ],
+    );
+
+    Widget actionCards({bool includeFooter = false}) => Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _ActionCard(
+          icon: Icons.north_east_rounded,
+          title: l.homeSendTitle,
+          body: l.homeSendBody,
+          background: theme.colorScheme.primary,
+          foreground: theme.colorScheme.onPrimary,
+          onTap: onSend,
+        ),
+        Gap.m,
+        _ActionCard(
+          icon: Icons.south_west_rounded,
+          title: l.homeReceiveTitle,
+          body: l.homeReceiveBody,
+          // One accent per screen: the primary action carries it; receiving
+          // sits on a quiet surface.
+          background: theme.colorScheme.surfaceContainerHigh,
+          foreground: theme.colorScheme.onSurface,
+          onTap: onReceive,
+        ),
+        if (includeFooter) ...[Gap.l, _PrivacyFooter(text: l.homeFooter)],
+      ],
+    );
+
     return Scaffold(
       appBar: AppBar(
         actions: [
@@ -33,65 +85,58 @@ class HomeView extends StatelessWidget {
           ),
         ],
       ),
-      body: SafeArea(
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
-          children: [
-            const Align(
-              alignment: AlignmentDirectional.centerStart,
-              child: TotalDropMark(size: 88),
-            ),
-            Gap.m,
-            Text('TotalDrop', style: theme.textTheme.displaySmall),
-            Text(
-              l.appTagline,
-              style: theme.textTheme.bodyLarge?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
-              ),
-            ),
-            Gap.xl,
-            _ActionCard(
-              icon: Icons.north_east_rounded,
-              title: l.homeSendTitle,
-              body: l.homeSendBody,
-              background: theme.colorScheme.primary,
-              foreground: theme.colorScheme.onPrimary,
-              onTap: onSend,
-            ),
-            Gap.m,
-            _ActionCard(
-              icon: Icons.south_west_rounded,
-              title: l.homeReceiveTitle,
-              body: l.homeReceiveBody,
-              // One accent per screen: the primary action carries it; receiving
-              // sits on a quiet surface.
-              background: theme.colorScheme.surfaceContainerHigh,
-              foreground: theme.colorScheme.onSurface,
-              onTap: onReceive,
-            ),
-            Gap.xl,
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Icon(
-                  Icons.lock_outline,
-                  size: 20,
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
-                Gap.s,
-                Expanded(
-                  child: Text(
-                    l.homeFooter,
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ],
+      body: AdaptivePaneLayout(
+        compactBuilder: (_) => ListView(
+          padding: EdgeInsets.fromLTRB(pad, 0, pad, 24),
+          children: [brandHeader(), Gap.xl, actionCards(includeFooter: true)],
+        ),
+        primary: CenteredScroll(
+          padding: EdgeInsets.symmetric(horizontal: pad, vertical: 24),
+          child: brandHeader(includeFooter: true),
+        ),
+        secondary: CenteredScroll(
+          padding: EdgeInsets.symmetric(horizontal: pad, vertical: 24),
+          child: actionCards(),
+        ),
+        tabletopPrimary: CenteredScroll(
+          padding: EdgeInsets.symmetric(horizontal: pad, vertical: 16),
+          child: brandHeader(),
+        ),
+        tabletopSecondary: CenteredScroll(
+          padding: EdgeInsets.symmetric(horizontal: pad, vertical: 16),
+          child: actionCards(includeFooter: true),
         ),
       ),
+    );
+  }
+}
+
+class _PrivacyFooter extends StatelessWidget {
+  const _PrivacyFooter({required this.text});
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(
+          Icons.lock_outline,
+          size: 20,
+          color: theme.colorScheme.onSurfaceVariant,
+        ),
+        Gap.s,
+        Expanded(
+          child: Text(
+            text,
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

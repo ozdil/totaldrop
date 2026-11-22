@@ -75,6 +75,13 @@ android {
             signingConfig = signingConfigs.getByName(if (hasReleaseKey) "release" else "debug")
         }
     }
+
+    // Store native .so libraries uncompressed and page-aligned for Android 15+ 16 KB page sizes.
+    packaging {
+        jniLibs {
+            useLegacyPackaging = false
+        }
+    }
 }
 
 kotlin {

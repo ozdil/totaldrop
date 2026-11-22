@@ -7,6 +7,7 @@ import 'package:material_ui/material_ui.dart';
 
 import '../../l10n/app_localizations.dart';
 import '../../src/rust/api/transfer.dart';
+import 'adaptive.dart';
 import 'l10n.dart';
 import 'mark.dart';
 import 'theme.dart';
@@ -269,31 +270,147 @@ class TransferProgress extends StatelessWidget {
   }
 }
 
+/// An error screen that stays centered in a readable column on flat screens
+/// and splits cleanly across physical panes in book and tabletop postures so
+/// neither the headline nor technical details cross a hinge.
+class AdaptiveErrorView extends StatelessWidget {
+  const AdaptiveErrorView({
+    super.key,
+    required this.error,
+    required this.onRetry,
+  });
+
+  final TransferError error;
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
+    final theme = Theme.of(context);
+    final pad = AdaptiveMetrics.of(context).horizontalPadding;
+    final wrongCode = error.kind == ErrorKind.wrongCode;
+    final cause = causeMessage(context, error.cause);
+
+    return AdaptivePaneLayout(
+      splitFlatWide: false,
+      compactBuilder: (_) => CenteredScroll(
+        padding: EdgeInsets.symmetric(horizontal: pad, vertical: 24),
+        child: ErrorPanel(error: error, onRetry: onRetry),
+      ),
+      primary: CenteredScroll(
+        padding: EdgeInsets.symmetric(horizontal: pad, vertical: 20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Icon(
+              wrongCode ? Icons.gpp_bad_outlined : Icons.error_outline,
+              size: 56,
+              color: theme.colorScheme.error,
+            ),
+            Gap.m,
+            Announced(
+              Text(
+                errorMessage(context, error.kind),
+                textAlign: TextAlign.center,
+                style: theme.textTheme.titleMedium,
+              ),
+            ),
+          ],
+        ),
+      ),
+      secondary: CenteredScroll(
+        padding: EdgeInsets.symmetric(horizontal: pad, vertical: 20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            if (error.detail.isNotEmpty) ...[
+              ExpansionTile(
+                title: Text(l.moreInfo, style: theme.textTheme.bodyMedium),
+                expandedCrossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        if (cause != null) ...[
+                          Text(cause, style: theme.textTheme.bodyMedium),
+                          Gap.m,
+                        ],
+                        Text(
+                          l.technicalDetail,
+                          style: theme.textTheme.labelMedium?.copyWith(
+                            color: theme.colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                        Gap.s,
+                        SelectableText(
+                          revealControls(error.detail),
+                          style: theme.textTheme.bodySmall,
+                          textDirection: TextDirection.ltr,
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              Gap.l,
+            ],
+            FilledButton(onPressed: onRetry, child: Text(l.tryAgain)),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 /// A screen's content, centred, that scrolls when it is taller than the
 /// screen: with the largest text, a long language or "More information"
-/// open, nothing runs off the bottom (#322).
+/// open, nothing runs off the bottom (#322). On unfolded foldables and
+/// tablets it caps width at [maxWidth] so single-column content stays easy to
+/// scan.
 class CenteredScroll extends StatelessWidget {
   const CenteredScroll({
     super.key,
     required this.child,
-    this.padding = const EdgeInsets.all(24),
+    this.padding,
+    this.maxWidth = 560,
   });
 
   final Widget child;
-  final EdgeInsets padding;
+  final EdgeInsetsGeometry? padding;
+  final double maxWidth;
 
   @override
-  Widget build(BuildContext context) => LayoutBuilder(
-    builder: (context, constraints) => SingleChildScrollView(
-      padding: padding,
-      child: ConstrainedBox(
-        constraints: BoxConstraints(
-          minHeight: math.max(0, constraints.maxHeight - padding.vertical),
+  Widget build(BuildContext context) {
+    final resolvedPadding =
+        padding ??
+        EdgeInsets.symmetric(
+          horizontal: AdaptiveMetrics.of(context).horizontalPadding,
+          vertical: 24,
+        );
+    return LayoutBuilder(
+      builder: (context, constraints) => SingleChildScrollView(
+        padding: resolvedPadding,
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            minHeight: math.max(
+              0,
+              constraints.maxHeight - resolvedPadding.vertical,
+            ),
+          ),
+          child: Center(
+            child: ConstrainedBox(
+              constraints: BoxConstraints(maxWidth: maxWidth),
+              child: SizedBox(width: double.infinity, child: child),
+            ),
+          ),
         ),
-        child: Center(child: child),
       ),
-    ),
-  );
+    );
+  }
 }
 
 /// One button of a [ButtonPair].
@@ -423,5 +540,5 @@ class DoneBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) =>
-      const TotalDropMark(size: 140, done: true);
+      TotalDropMark(size: adaptiveMarkSize(context, 140), done: true);
 }

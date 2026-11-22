@@ -62,53 +62,78 @@ void main() {
     },
   );
 
-  // Every copy of the mark uses the same path and timing (docs/tasarim.md).
+  // Every copy of the mark uses the same path and timing (docs/design.md).
   const path = 'M55 15H97V57A42 42 0 1 1 55 15Z';
   test('the SVGs, the icon script and the site draw the same path', () {
+    expect(
+      File('assets/logo.svg').readAsStringSync(),
+      contains(path),
+      reason: 'assets/logo.svg',
+    );
+    // Sibling platform copies live in separate repositories in modular checkouts
+    // (ADR 0020) and alongside app/ in the umbrella monorepo.
     for (final f in [
-      'assets/logo.svg',
       '../site/public/favicon.svg',
       '../site/public/index.html',
       '../packaging/linux/app.totaldrop.TotalDrop.svg',
       '../packaging/linux/app.totaldrop.TotalDrop-symbolic.svg',
       '../packaging/render-icons.sh',
     ]) {
-      expect(File(f).readAsStringSync(), contains(path), reason: f);
+      final file = File(f);
+      if (file.existsSync()) {
+        expect(file.readAsStringSync(), contains(path), reason: f);
+      }
     }
   });
 
   test('the Linux app and the site turn the same way, on the same timing', () {
-    final qml = File('../linux/qml/Mark.qml')
-        .readAsStringSync()
-        .replaceAll(RegExp(r'\s+'), ' ');
-    expect(qml, contains('origin.x: 55 * root.unit; origin.y: 57 * root.unit'));
-    expect(qml, contains('startX: 55 * root.unit; startY: 15 * root.unit'));
-    expect(qml, contains('PathLine { x: 97 * root.unit; y: 15 * root.unit }'));
-    expect(qml, contains('PathLine { x: 97 * root.unit; y: 57 * root.unit }'));
-    expect(qml, contains('duration: 600'));
-    expect(
-      RegExp(r'PauseAnimation \{ duration: 200 \}').allMatches(qml).length,
-      4,
-    );
-    expect(qml, contains('[0.65, 0, 0.35, 1, 1, 1]'));
-    final css = File('../site/public/styles.css').readAsStringSync();
-    // The site turns the mark around its own box centre, which for this
-    // path (a three-quarter circle around (55, 57) and the corner square)
-    // is (55, 57), whatever the viewBox (#209).
-    expect(css, contains('transform-box: fill-box; transform-origin: 50% 50%'));
-    expect(
-      css,
-      contains(
-        'animation: mk-turn 3.2s cubic-bezier(0.65, 0, 0.35, 1) infinite',
-      ),
-    );
-    for (final stop in [
-      '18.75%, 25%',
-      '43.75%, 50%',
-      '68.75%, 75%',
-      '93.75%, 100%',
-    ]) {
-      expect(css, contains(stop));
+    final qmlFile = File('../linux/qml/Mark.qml');
+    if (qmlFile.existsSync()) {
+      final qml = qmlFile.readAsStringSync().replaceAll(RegExp(r'\s+'), ' ');
+      expect(
+        qml,
+        contains('origin.x: 55 * root.unit; origin.y: 57 * root.unit'),
+      );
+      expect(qml, contains('startX: 55 * root.unit; startY: 15 * root.unit'));
+      expect(
+        qml,
+        contains('PathLine { x: 97 * root.unit; y: 15 * root.unit }'),
+      );
+      expect(
+        qml,
+        contains('PathLine { x: 97 * root.unit; y: 57 * root.unit }'),
+      );
+      expect(qml, contains('duration: 600'));
+      expect(
+        RegExp(r'PauseAnimation \{ duration: 200 \}').allMatches(qml).length,
+        4,
+      );
+      expect(qml, contains('[0.65, 0, 0.35, 1, 1, 1]'));
+    }
+    final cssFile = File('../site/public/styles.css');
+    if (cssFile.existsSync()) {
+      final css = cssFile.readAsStringSync();
+      // The site turns the mark around its own box centre, which for this
+      // path (a three-quarter circle around (55, 57) and the corner square)
+      // is (55, 57), whatever the viewBox (#209).
+      expect(
+        css,
+        contains('transform-box: fill-box; transform-origin: 50% 50%'),
+      );
+      expect(
+        css,
+        contains(
+          'animation: mk-turn 3.2s cubic-bezier(0.65, 0, 0.35, 1) infinite',
+        ),
+      );
+      for (final stop in [
+        '18.75%, 25%',
+        '43.75%, 50%',
+        '68.75%, 75%',
+        '93.75%, 100%',
+      ]) {
+        expect(css, contains(stop));
+      }
     }
   });
 

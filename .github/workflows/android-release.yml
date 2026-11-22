@@ -40,7 +40,7 @@ jobs:
         with:
           channel: stable
           # The signed bundle is built with a known Flutter, not the day's.
-          flutter-version: 3.47.8
+          flutter-version: 3.50.0
       - name: Rust toolchain and Android targets
         working-directory: .
         run: rustup show active-toolchain || rustup toolchain install
@@ -74,13 +74,14 @@ jobs:
           printf '%s' "$KEYSTORE" | base64 -d > "$RUNNER_TEMP/upload.jks"
           ANDROID_UPLOAD_STORE_FILE="$RUNNER_TEMP/upload.jks" flutter build appbundle --release
           rm -f "$RUNNER_TEMP/upload.jks"
-      - name: Signed with the upload key
+      - name: Signed with the upload key and 16 KB ELF aligned
         env:
           # SHA-256 of the upload certificate registered with Google Play.
           EXPECTED: "42:65:75:4D:25:74:3A:5A:EA:AC:CA:92:4F:03:6A:DB:F3:77:9E:95:FB:6A:B9:87:17:50:59:3C:9C:7F:B0:FB"
         run: |
           got=$(keytool -printcert -jarfile build/app/outputs/bundle/release/app-release.aab | sed -n 's/^\s*SHA256: //p' | head -1)
           [ "$got" = "$EXPECTED" ] || { echo "signed with $got"; exit 1; }
+          ../tools/verify-16kb-elf.sh build/app/outputs/bundle/release/app-release.aab
       - name: Name the bundle
         env:
           TAG: ${{ github.ref_name }}

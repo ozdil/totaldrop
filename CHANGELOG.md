@@ -10,6 +10,184 @@ All notable changes to TotalDrop are recorded here. The format follows
 Entries for the next release are in [changelog.d/](changelog.d/), one file
 per change, and move here when it is released (docs/surec.md).
 
+## [android-0.4.0-beta.1] - 2026-11-22
+
+### Added
+
+- **CI:** The version check also checks that every Linux package recipe
+  and the Flatpak keep build times out of the Qt resources with the same
+  options, and that the metainfo, the RPM spec and the PKGBUILD name the
+  same license (#266).
+- **CI:** Every Linux package build checks that the Dolphin, Nautilus and
+  Nemo menus are in the package and that Nautilus's Python bindings are
+  only suggested, not required; the Flatpak build checks that it carries
+  no menus (#319).
+- **Android:** At first start TotalDrop asks you to let it run without
+  battery restrictions, so that a transfer keeps going when you switch
+  apps or lock the screen. It opens TotalDrop's app info, where battery
+  use is set; on Xiaomi, Redmi and POCO phones it also opens Xiaomi's own
+  battery saver and Autostart. The page is not shown when nothing
+  restricts TotalDrop. If a transfer went to the background while Android
+  still restricted it, or after "Not now", the page comes back once, when
+  the transfer has ended; it is always in Settings (#338).
+- **Site:** The team page lists a new developer, Zafer Can (#363).
+- **Process:** Contributors can install pre-commit hooks that check every
+  commit for conflict markers, broken YAML or TOML, large files, private
+  keys, secrets, signing keys and whitespace, with no toolchain needed. A
+  second, optional configuration runs the CI checks locally (#376).
+- **CI:** Every pull request and every push to main is scanned for
+  secrets with gitleaks, and fails when a signing key or a
+  `key.properties` file is committed (#378).
+- **All platforms:** Where both devices have IPv6, a transfer also tries
+  a direct IPv6 path, which needs no way through a home router's NAT.
+  IPv4 works as before, also with older versions. An IPv6 address built
+  from the network card's hardware address is never shown to the other
+  device (#403).
+- **Android:** A receive link opens Receive with the code filled in.
+  When TotalDrop is installed from Google Play, a shared
+  `https://totaldrop.app/r#…` link opens the app straight away (verified
+  App Links); the "Open in TotalDrop" button on that page uses
+  `totaldrop://r/…`. Nothing connects until you do (#445).
+- **Site:** totaldrop.app/.well-known/security.txt (RFC 9116) names where
+  to report a security problem: security@totaldrop.app or GitHub's
+  private vulnerability reporting (#450).
+- **Android:** Full foldable and large-screen Android support: every screen
+  adapts automatically to book posture (vertical hinge), tabletop/flex
+  posture (horizontal fold), unfolded two-pane screens, and narrow cover
+  displays without straddling the hinge or interrupting active transfers,
+  and multi-window Drag & Drop lets you drop files or text straight from
+  another app into Send (#632).
+
+### Changed
+
+- **CI:** cargo-deny and OSV-Scanner no longer ignore any advisory, since
+  the zbus 5 crates left the dependency tree, and the check that their
+  lists agree now reads every form cargo-deny accepts (#49).
+- **Site, README:** The download page and the README point at Linux
+  0.3.0-beta.6 and offer its Flatpak for x86-64 and ARM64. "What's new"
+  lists the Android 0.3.0-beta.7 and the Linux 0.3.0-beta.6 changes under
+  their own headings, in all 35 languages, worded as in the release notes;
+  the download page also says how to install a Flatpak (#330).
+- **Site, README:** The download page and the README point at Android
+  0.3.0-beta.7 and list what is new: sharing files to TotalDrop from any
+  app, sending and receiving a text, a verification heading that fits on
+  narrow screens, and no connection to a relay the other device will not
+  use (#336).
+- **All platforms:** The transfer socket asks the system for buffers of up
+  to 4 MiB each way, so bursts of packets on a fast local network are less
+  likely to be dropped by the receiver and slow the transfer down. How
+  much a device grants depends on its system (#341).
+- **Android:** When the receiver connects, the sender sees the words to
+  compare and that the receiver has yet to accept, as on Linux, instead
+  of "Sending" before anything is sent (#342).
+- **Process:** Every file is owned by the maintainers team
+  (.github/CODEOWNERS), so a pull request from outside it needs a
+  maintainer's approval; GOVERNANCE.md names the project lead, the
+  maintainers, the developers and the testers (#365).
+- **Site:** The team page now shows Sadık Kuzu as principal engineer,
+  in all 35 languages (#367).
+- **CI:** Every workflow runs the same fixed Node major (24) instead of
+  following the newest LTS, `@types/node` keeps that major, and a check
+  fails a pull request where they disagree. Dependabot no longer proposes
+  `@types/node` majors on their own; a Node upgrade is one pull request
+  (#369).
+- **Site:** The privacy policy, version 7, says that the rendezvous server
+  counts each IP address's connections in memory for a short time, under a
+  randomly keyed code rather than the address, to limit abuse, and forgets
+  each count within about two minutes (#383, #46).
+- **Process:** The process document lists the kinds of bugs that reviews
+  found, with a rule and a check for each, and the pull request template
+  asks for them (#398).
+- **Site:** The team page introduces the project lead in one short line
+  about TotalDrop, "Leads product, design and releases.", in all 35
+  languages, in place of the GitHub profile text. Any listed person can
+  now have such a line in `site/team/team.json` (#408).
+- **Process:** AI sessions also run the securitymaxxing review commands
+  on security work, never check a leaked key with a live call, and attack
+  the live site or servers only with the project lead's approval (#422).
+- **Site:** The donations page lists the AI assistant the two maintainers
+  use, two premium seats on Anthropic's Claude Team plan (2,400 USD a year
+  billed yearly, 3,000 USD billed monthly), and says the seats count in the
+  money spent once donations pay for them. The Windows code signing
+  certificate leaves the list, because the Microsoft Store signs the Windows
+  app ([decision 0016](docs/kararlar/0016-windows-microsoft-store.md)). The
+  yearly total and goal rise from about 250 to about 2,575 USD (#478).
+- **Site:** The donation page says that donations go through the project
+  lead's personal GitHub Sponsors and Buy Me a Coffee pages for now and
+  will move to an account in TotalDrop's name when the project grows, in
+  all 35 languages; decision 0017 records why and when that happens (#487).
+- **Process:** The repository is written in English: the contributing
+  guide, the pull request and issue templates and the agent instructions
+  say so, and the remaining Turkish documents follow (#490).
+- **Site:** Remove Mustafa Yardımcı from the team page and GOVERNANCE.md
+  (#567).
+- **Site:** The team page now lists Antigravity (Gemini) alongside Claude
+  and Dependabot under "AI and automation", in all 35 languages (#598).
+
+### Fixed
+
+- **Android:** The screens no longer run off the phone with the largest
+  text size Android offers (200 %): the progress line wraps instead of
+  running off with a large file, the choose-files, preparing, done,
+  declined, connecting and error screens scroll when they are taller
+  than the phone, and the error screen no longer runs off when More
+  information is open. The error screen now sits in the middle of the
+  screen instead of at the top. Decline and Accept, and Copy and Share,
+  go one above the other when a label would not fit on one line beside
+  the other, instead of breaking into two lines (#322).
+- **Android:** Declining or accepting an offer does something only while
+  the offer waits for an answer: a second tap, or a decline that comes
+  back after the person moved on, no longer changes the screen or
+  answers the sender again (#342).
+- **All platforms:** A transfer that falls back to the relay no longer
+  hangs for minutes when the network drops while the connection to the
+  relay is full: the keep-alive ping and the closing of the connection
+  now give up after 10 seconds, as every other write to the relay
+  already did, and the app connects again (#424).
+- **Server:** The Cloudflare relay no longer counts too little of what a
+  device has not read yet after it wakes from hibernation, once or many
+  times, so its 32 MiB and 64 MiB limits on unread data hold there too
+  (#426).
+- **Transfers:** When a direct connection that had gone quiet comes back,
+  the transfer picks up within moments of the device returning to it,
+  instead of standing still for 10 seconds or more. The side that had
+  moved onto the relay sends its last few packets once more on the direct
+  path, which makes QUIC resend what was lost at once (#435).
+- **Server:** A client over its connection rate is told "too many
+  requests" on Windows too. The Rust rendezvous server closed a refused
+  connection with the client's first message unread, which reset the
+  connection, and Windows dropped the refusal before the client read it
+  ("connection aborted"). The server now waits up to 2 seconds for the
+  client to close (#442).
+- **Android:** The transfer percent is written the way the device's
+  region writes it, as the sizes beside it already are: "%50" with a
+  Turkish region, "50 %" with a German one. It is rounded down, so it no
+  longer reads 100% while the last bytes are still arriving, and a screen
+  reader now hears the same number (#483).
+
+### Security
+
+- **Server:** The rendezvous server, on Cloudflare and in Rust, now limits
+  each client (an IPv4 address or an IPv6 /64) to 60 new codes and
+  mailboxes at once and one more every second. A client over the limit is
+  told "too many requests". The counts are kept in memory only, under a
+  randomly keyed hash rather than the address, and are never written to
+  disk or a log (#46).
+- **Server:** The self-hosted rendezvous server in Rust compares the
+  token that lets a code's sender claim its mailbox in constant time, as
+  the one on Cloudflare already did (#428).
+- **Core:** A device no longer dials a broadcast or multicast address
+  that the other side names as one of its addresses, so a transfer
+  cannot make it send to every device on the local network (#450).
+- **Server:** The rendezvous server and the relay, on Cloudflare and in
+  Rust, refuse a WebSocket that a web page opens (one that carries an
+  `Origin` header). The apps and the command line never send one, so a
+  page can no longer open connections from its visitors' browsers, which
+  counted against their limits on the rendezvous server (#450).
+- **Android:** The build now checks the Gradle download against its
+  published SHA-256 checksum, so a changed or swapped Gradle cannot build
+  the app (#457).
+
 ## [linux-0.3.0-beta.6] - 2026-11-07
 
 ### Added

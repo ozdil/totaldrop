@@ -161,4 +161,32 @@ class SharedFilesTest {
             SharedFiles.uniqueNames(listOf("a.jpg", "a.jpg", "A.JPG", "b", "b", "a (2).jpg")),
         )
     }
+
+    @Test
+    fun multiWindowDropDeduplicatesInOrder() {
+        assertEquals(
+            listOf("content://a/1", "content://b/2", "content://c/3"),
+            SharedFiles.deduplicateOrdered(
+                listOf(null, "content://a/1", "content://b/2", "content://a/1", null, "content://c/3"),
+            ),
+        )
+        assertTrue(SharedFiles.deduplicateOrdered(listOf<String?>(null, null)).isEmpty())
+    }
+
+    @Test
+    fun multiWindowDropSelectsPlainTextOnlyWhenNoFiles() {
+        assertEquals(
+            "first line\nsecond line",
+            SharedFiles.selectDropText(hasUris = false, listOf("first line", "", null, "second line")),
+        )
+        // When a file URI is present, file copying takes precedence over companion text.
+        assertEquals(
+            null,
+            SharedFiles.selectDropText(hasUris = true, listOf("ignored caption")),
+        )
+        assertEquals(
+            null,
+            SharedFiles.selectDropText(hasUris = false, listOf(null, "")),
+        )
+    }
 }
