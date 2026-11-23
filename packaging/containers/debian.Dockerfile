@@ -2,7 +2,8 @@
 FROM debian:trixie@sha256:3cda3ca472ce45507a5109c6a3907093e24d9ae67d55954c9a07a45665dafba2
 RUN apt-get update && apt-get install -y --no-install-recommends \
       build-essential debhelper devscripts fakeroot lld pkgconf ca-certificates curl git \
-      qt6-base-dev qt6-base-dev-tools qt6-declarative-dev lintian \
+      qt6-base-dev qt6-base-dev-tools qt6-base-private-dev qt6-declarative-dev \
+      libwayland-bin libwayland-dev wayland-protocols lintian \
     && rm -rf /var/lib/apt/lists/*
 ENV RUSTUP_HOME=/opt/rustup CARGO_HOME=/opt/cargo PATH=/opt/cargo/bin:$PATH
 # rustup-init from a fixed rustup release, checked against its sha256
